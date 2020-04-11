@@ -31,6 +31,8 @@ if sys.argv[2] == '':
     nome_usuario.send_keys('Amarildinho')
 nome_usuario.send_keys(sys.argv[2])
 
+response_msg = ''
+
 while True:
     try:
         botao_jogar = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[2]/div[2]/div[2]/button[1]/strong')
@@ -74,18 +76,28 @@ while True:
             
             try:
                 value = dictionary[letra][text][0].title()
+                if value == '': raise KeyError
                 inp.send_keys(value)
                 # print(f'{text.upper()}: {value.title()}')
             except KeyError as e:
                 value = f'{letra}xxx'
                 inp.send_keys(value)
                 # print(f'{text.upper()}: {value.title()}')
-                make_stop = False
-                continue
             except Exception as e:
-                print(type(e))
+                value = f'{letra}xxx'
+                inp.send_keys(value)
+            finally:
+                response_msg += f'{value}, '
 
         stop = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div/button/strong')
+        
+        # while True:
+        #     try:
+        #         message = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[3]/form/input')
+        #         message.send_keys(f'{response_msg}\n')
+        #         break
+        #     except Exception:
+        #         pass
         
         while True:
             stop.click()
@@ -94,9 +106,10 @@ while True:
         pass
     except Exception as e:
         pass
+    finally:
+        if response_msg != '':
+            print(response_msg)
+            response_msg = ''
 
-    continue
-
-response = input('Fala satanás')
 driver.close()
 
