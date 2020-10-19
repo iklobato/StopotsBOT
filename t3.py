@@ -35,7 +35,7 @@ response_msg = ''
 
 while True:
     try:
-        botao_jogar = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div[2]/div[2]/div[2]/button[1]/strong')
+        botao_jogar = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[2]/button[1]/strong')
         botao_jogar.click()
         break
     except Exception:
@@ -49,61 +49,50 @@ while True:
 
 while True:
 
-    while True:
-        try:
-            botao_pronto = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div/button')
-            break
-        except NoSuchElementException as nsee:
-            sleep(3)
     try:
-        botao_avaliar = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div/button/strong')
+        botao_avaliar = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/button/strong')
         botao_avaliar_txt = botao_avaliar.text
         if botao_avaliar_txt.lower() in ['avaliar', 'estou pronto', 'iniciar']:
             botao_avaliar.click()
             sleep(1)
             continue
-        letra = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[1]/div[2]/div[2]/div/ul/li[1]/span')
+        letra = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span')
         letra = letra.text.lower()
         if letra == '':
             sleep(3)
             continue
         
+        something_blank = False
         for i in range(1,13):
-            location = f'/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div/div[1]'
+            location = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]'
             inp = driver.find_element(By.XPATH, f'{location}/label[{i}]/input')
             text = driver.find_element(By.XPATH, f'{location}/label[{i}]').text
             text = unidecode(text).lower()
             
             try:
-                value = dictionary[letra][text][0].title()
+                # value = dictionary[letra][text][0].title()
+                lista_de_valores = dictionary[letra][text]
+                value = random.choice(lista_de_valores)
                 if value == '': raise KeyError
                 inp.send_keys(value)
-                # print(f'{text.upper()}: {value.title()}')
-            except KeyError as e:
-                value = f'{letra}xxx'
-                inp.send_keys(value)
-                # print(f'{text.upper()}: {value.title()}')
             except Exception as e:
-                value = f'{letra}xxx'
-                inp.send_keys(value)
+                something_blank = True
+                pass
             finally:
                 response_msg += f'{value}, '
 
-        stop = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div/button/strong')
+        stop = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/button/strong')
         
-        # while True:
-        #     try:
-        #         message = driver.find_element(By.XPATH, '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[3]/form/input')
-        #         message.send_keys(f'{response_msg}\n')
-        #         break
-        #     except Exception:
-        #         pass
-        
+       
         while True:
+            if something_blank:
+                print(f'Espaços em branco, deixando alguem aberto stop antes...')
+                sleep(45)
             stop.click()
+        print('Stop!')
 
     except NoSuchElementException as nsee:
-        pass
+        sleep(3)
     except Exception as e:
         pass
     finally:
