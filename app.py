@@ -54,49 +54,36 @@ async def get_word_answer(chosen_letter: str, category: str):
     return answer
 
 
-def compare_two_dicts(dict1, dict2):
-    """
-    Compare two dictionaries, return False if they are different, True if they are the same.
-    :param dict1:
-    :param dict2:
-    :return:
-    """
-    if any([dict1 is None, dict2 is None]):
-        return False
-    for key, value in dict1.items():
-        if key not in dict2:
-            return False
-        if value != dict2[key]:
-            return False
-    return True
-
-
-async def print_score(page, current_points=None) -> dict:
+async def compare_score(page, current_points=None) -> dict:
     users_points = {}
     users = await page.locator('ul#users li').all()
-    if not users or len(users) == 0:
+
+    if not users:
+        logging.warning("No users found.")
         return current_points
 
     for user in users:
         username = await user.locator('.nick').text_content()
-        try:
+        if 'Vazio' in username:
+            continue
+
+        span_count = await user.locator('span').count()
+        if span_count > 0:
             points_text = await user.locator('span').text_content()
             points = int(points_text.replace(' pts', '').strip())
             users_points[unidecode(username.strip())] = points
-        except Exception as e:
-            logging.warning(f"Could not retrieve points for user {username}. Error: {e}")
-            return {}
 
-    if not compare_two_dicts(users_points, current_points):
-        logging.info(
-            tabulate(
-                sorted(users_points.items(), key=lambda x: x[1], reverse=True),
-                headers=['user', 'points'],
-                tablefmt='outline'
-            )
+    return users_points
+
+
+async def print_score(users_points: dict) -> None:
+    logging.info(
+        tabulate(
+            sorted(users_points.items(), key=lambda x: x[1], reverse=True),
+            headers=['user', 'points'],
+            tablefmt='outline'
         )
-        return users_points
-    return current_points
+    )
 
 
 async def click_ready_if_exists(page):
@@ -135,7 +122,10 @@ async def run(_playwright, args):
     while True:
         await check_and_press_ok_button(page)  # anti ban
         await click_ready_if_exists(page)  # ready button
-        current_users_points = await print_score(page, current_users_points)
+        updated_score = await compare_score(page, current_users_points)
+        if updated_score != current_users_points:
+            await print_score(updated_score)
+            current_users_points = updated_score
 
         letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
         letter = await page.text_content(f'xpath={letter_xpath}')
@@ -164,13 +154,11 @@ async def run(_playwright, args):
             await page.fill(f'xpath={input_xpath}', answer_text)
             logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
 
-            current_users_points = await print_score(page, current_users_points)
-
 
 async def main():
     parameters = ArgumentParser()
     parameters.add_argument('--headless', action='store_true', help='Run in headless mode')
-    parameters.add_argument('--username', type=str, help='Username to use in the game')
+    parameters.add_argument('--username', type=str, help='Username to use in the game', default='ik/test')
     args = parameters.parse_args()
     async with async_playwright() as p:
         await run(p, args)
