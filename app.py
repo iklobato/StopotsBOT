@@ -88,6 +88,9 @@ async def print_score(users_points: dict) -> None:
 
 async def click_ready_if_exists(page):
     ready_button_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/button/strong'
+    button = await page.query_selector(f'xpath={ready_button_xpath}')
+    if not button:
+        return
     button_text = await page.text_content(f'xpath={ready_button_xpath}')
     is_disable = await page.evaluate(f'el => el.disabled', f'xpath={ready_button_xpath}')
     if not is_disable and button_text and button_text.strip().lower() in ['estou pronto', 'avaliar']:
