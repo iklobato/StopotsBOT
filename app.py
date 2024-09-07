@@ -123,39 +123,42 @@ async def run(_playwright, args):
     last_letter = None
     current_users_points = None
     while True:
-        await check_and_press_ok_button(page)  # anti ban
-        await click_ready_if_exists(page)  # ready button
-        updated_score = await compare_score(page, current_users_points)
-        if updated_score != current_users_points:
-            await print_score(updated_score)
-            current_users_points = updated_score
+        try:
+            await check_and_press_ok_button(page)  # anti ban
+            await click_ready_if_exists(page)  # ready button
+            updated_score = await compare_score(page, current_users_points)
+            if updated_score != current_users_points:
+                await print_score(updated_score)
+                current_users_points = updated_score
 
-        letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
-        letter = await page.text_content(f'xpath={letter_xpath}')
-        if letter == last_letter:
-            await asyncio.sleep(1)
-            continue
-
-        last_letter = letter
-        logging.info(f"Current letter: {letter.upper()}")
-
-        for i in range(1, 13):
-            label_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/span'
-            input_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/input'
-
-            if await page.query_selector(f'xpath={label_xpath}') is None:
-                break
-
-            input_text = await page.input_value(f'xpath={input_xpath}')  # Await input_value()
-            if input_text and input_text != "":
+            letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
+            letter = await page.text_content(f'xpath={letter_xpath}')
+            if letter == last_letter:
+                await asyncio.sleep(1)
                 continue
 
-            label_text = await page.text_content(f'xpath={label_xpath}')  # Await text_content()
-            label_text = unidecode(label_text)
-            label_text = LABELS_MAP.get(label_text, label_text)
-            answer_text = await get_word_answer(letter.lower(), label_text.lower())
-            await page.fill(f'xpath={input_xpath}', answer_text)
-            logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
+            last_letter = letter
+            logging.info(f"Current letter: {letter.upper()}")
+
+            for i in range(1, 13):
+                label_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/span'
+                input_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/input'
+
+                if await page.query_selector(f'xpath={label_xpath}') is None:
+                    break
+
+                input_text = await page.input_value(f'xpath={input_xpath}')  # Await input_value()
+                if input_text and input_text != "":
+                    continue
+
+                label_text = await page.text_content(f'xpath={label_xpath}')  # Await text_content()
+                label_text = unidecode(label_text)
+                label_text = LABELS_MAP.get(label_text, label_text)
+                answer_text = await get_word_answer(letter.lower(), label_text.lower())
+                await page.fill(f'xpath={input_xpath}', answer_text)
+                logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
 
 
 async def main():
