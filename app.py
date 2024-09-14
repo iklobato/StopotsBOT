@@ -137,13 +137,14 @@ async def run(_playwright, args):
     while True:
         try:
 
+            await check_and_press_ok_button(page)  # anti ban
+            await click_ready_if_exists(page)  # ready button
+
             letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
             letter = await page.text_content(f'xpath={letter_xpath}')
             if letter == last_letter:
                 continue
 
-            await check_and_press_ok_button(page)  # anti ban
-            await click_ready_if_exists(page)  # ready button
             updated_score = await compare_score(page, current_users_points)
             if updated_score != current_users_points:
                 await print_score(updated_score)
