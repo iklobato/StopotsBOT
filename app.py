@@ -154,12 +154,13 @@ async def run(_playwright, args):
             if updated_score:
                 ik_user_pattern = re.compile(r'ik/\d+')
                 if any(ik_user_pattern.match(username) for username in updated_score.keys()):
-                    logging.info("'ik/#' found in the room, searching for another room.")
-                    await page.close()
+                    if not any(username == args.username for username in updated_score.keys()):
+                        logging.info("'ik/#' found in the room, searching for another room.")
+                        await page.close()
 
-                    page = await context.new_page()
-                    await safe_goto(page, STOPOTS_URL)
-                    continue
+                        page = await context.new_page()
+                        await safe_goto(page, STOPOTS_URL)
+                        continue
 
             last_letter = letter
             logging.info(f"Current letter: {letter.upper()}")
