@@ -118,6 +118,7 @@ async def run(_playwright, args):
                 logging.warning(f"Attempt {attempt + 1} failed, retrying...")
                 if attempt + 1 == retries:
                     raise
+                logging.info(f"Waiting {60 * retries**(attempt + 1)} seconds before retrying...")
                 await asyncio.sleep(60 * retries**(attempt + 1))  # Exponential backoff
 
     await safe_goto(page, STOPOTS_URL)
