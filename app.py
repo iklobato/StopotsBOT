@@ -152,7 +152,7 @@ async def run(_playwright, args):
                 current_users_points = updated_score
 
             if updated_score:
-                ik_user_pattern = re.compile(r'ik/\d+')
+                ik_user_pattern = re.compile(r'ik/\d{1,2}')
                 if any(ik_user_pattern.match(username) for username in updated_score.keys()):
                     if not any(username == args.username for username in updated_score.keys()):
                         logging.info("'ik/#' found in the room, searching for another room.")
@@ -192,10 +192,12 @@ async def main():
     parameters = ArgumentParser()
     parameters.add_argument('--headless', action='store_true', help='Run in headless mode')
     parameters.add_argument('--username', type=str, help='Username to use in the game', default='ik/test')
+    parameters.add_argument('--task', type=str, help='Task to run', default='stopots')
     args = parameters.parse_args()
     while True:
         try:
             async with async_playwright() as _playwright:
+                logging.info("Starting script...")
                 await run(_playwright, args)
         except Exception as e:
             logging.error(f"Script encountered a TimeoutError: {e}. Restarting the script...")
