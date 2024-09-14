@@ -109,7 +109,7 @@ async def run(_playwright, args):
 
     logging.info(f"Navigating to {STOPOTS_URL}")
 
-    async def safe_goto(_page, url, retries=3):
+    async def safe_goto(_page, url, retries=5):
         for attempt in range(retries):
             try:
                 await _page.goto(url, wait_until='load')
@@ -118,7 +118,7 @@ async def run(_playwright, args):
                 logging.warning(f"Attempt {attempt + 1} failed, retrying...")
                 if attempt + 1 == retries:
                     raise
-                await asyncio.sleep(5)
+                await asyncio.sleep(60 * retries**(attempt + 1))  # Exponential backoff
 
     await safe_goto(page, STOPOTS_URL)
 
