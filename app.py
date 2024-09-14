@@ -77,7 +77,7 @@ async def compare_score(page, current_points=None) -> dict:
 
 
 async def print_score(users_points: dict) -> None:
-    logging.info(
+    print(
         tabulate(
             sorted(users_points.items(), key=lambda x: x[1], reverse=True),
             headers=['user', 'points'],
@@ -105,10 +105,22 @@ async def run(_playwright, args):
         locale="pt-BR",
     )
     page = await context.new_page()
-    page.set_default_timeout(90_000)
+    page.set_default_timeout(120_000)
 
     logging.info(f"Navigating to {STOPOTS_URL}")
-    await page.goto(STOPOTS_URL)
+
+    async def safe_goto(_page, url, retries=3):
+        for attempt in range(retries):
+            try:
+                await _page.goto(url, wait_until='domcontentloaded')
+                return
+            except TimeoutError:
+                logging.warning(f"Attempt {attempt + 1} failed, retrying...")
+                if attempt + 1 == retries:
+                    raise
+                await asyncio.sleep(5)
+
+    await safe_goto(page, STOPOTS_URL)
 
     username_input_xpath = '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[1]/div[2]/input'
     header_button_xpath = '/html/body/header/div[1]/div[2]/div[1]/form/button/strong'
@@ -124,18 +136,18 @@ async def run(_playwright, args):
     current_users_points = None
     while True:
         try:
+
+            letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
+            letter = await page.text_content(f'xpath={letter_xpath}')
+            if letter == last_letter:
+                continue
+
             await check_and_press_ok_button(page)  # anti ban
             await click_ready_if_exists(page)  # ready button
             updated_score = await compare_score(page, current_users_points)
             if updated_score != current_users_points:
                 await print_score(updated_score)
                 current_users_points = updated_score
-
-            letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
-            letter = await page.text_content(f'xpath={letter_xpath}')
-            if letter == last_letter:
-                await asyncio.sleep(1)
-                continue
 
             last_letter = letter
             logging.info(f"Current letter: {letter.upper()}")
@@ -159,6 +171,8 @@ async def run(_playwright, args):
                 logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
         except Exception as e:
             logging.error(f"An error occurred: {e}")
+            await page.screenshot(path=f"error_{random()}.png")
+            break
 
 
 async def main():
