@@ -147,7 +147,7 @@ async def run(_playwright, args):
                 continue
 
             updated_score = await compare_score(page, current_users_points)
-            if updated_score != current_users_points:
+            if updated_score.values() != current_users_points.values():
                 await print_score(updated_score)
                 current_users_points = updated_score
 
