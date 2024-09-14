@@ -1,4 +1,4 @@
-
+import re
 from argparse import ArgumentParser
 
 from tabulate import tabulate
@@ -105,14 +105,14 @@ async def run(_playwright, args):
         locale="pt-BR",
     )
     page = await context.new_page()
-    page.set_default_timeout(120_000)
+    page.set_default_timeout(180_000)
 
     logging.info(f"Navigating to {STOPOTS_URL}")
 
     async def safe_goto(_page, url, retries=3):
         for attempt in range(retries):
             try:
-                await _page.goto(url, wait_until='domcontentloaded')
+                await _page.goto(url, wait_until='load')
                 return
             except TimeoutError:
                 logging.warning(f"Attempt {attempt + 1} failed, retrying...")
@@ -148,6 +148,16 @@ async def run(_playwright, args):
             if updated_score != current_users_points:
                 await print_score(updated_score)
                 current_users_points = updated_score
+
+            if updated_score:
+                ik_user_pattern = re.compile(r'ik/\d+')
+                if any(ik_user_pattern.match(username) for username in updated_score.keys()):
+                    logging.info("'ik/#' found in the room, searching for another room.")
+                    await page.close()
+
+                    page = await context.new_page()
+                    await safe_goto(page, STOPOTS_URL)
+                    continue
 
             last_letter = letter
             logging.info(f"Current letter: {letter.upper()}")
