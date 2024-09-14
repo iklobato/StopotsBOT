@@ -147,7 +147,7 @@ async def run(_playwright, args):
                 continue
 
             updated_score = await compare_score(page, current_users_points)
-            if updated_score.values() != current_users_points.values():
+            if updated_score != current_users_points:
                 await print_score(updated_score)
                 current_users_points = updated_score
 
@@ -193,8 +193,12 @@ async def main():
     parameters.add_argument('--headless', action='store_true', help='Run in headless mode')
     parameters.add_argument('--username', type=str, help='Username to use in the game', default='ik/test')
     args = parameters.parse_args()
-    async with async_playwright() as p:
-        await run(p, args)
+    while True:
+        try:
+            async with async_playwright() as _playwright:
+                await run(_playwright, args)
+        except Exception as e:
+            logging.error(f"Script encountered a TimeoutError: {e}. Restarting the script...")
 
 
 if __name__ == "__main__":
