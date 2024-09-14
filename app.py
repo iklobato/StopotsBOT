@@ -77,7 +77,7 @@ async def compare_score(page, current_points=None) -> dict:
 
 
 async def print_score(users_points: dict) -> None:
-    print(
+    logging.info(
         tabulate(
             sorted(users_points.items(), key=lambda x: x[1], reverse=True),
             headers=['user', 'points'],
