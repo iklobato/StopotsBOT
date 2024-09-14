@@ -10,6 +10,10 @@ from random import choice, random
 
 from playwright.async_api import async_playwright
 
+from faker import Faker
+
+fake = Faker('pt_BR')
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -76,7 +80,13 @@ async def compare_score(page, current_points=None) -> dict:
     return users_points
 
 
-async def print_score(users_points: dict) -> None:
+async def print_score(users_points: dict, username=None) -> None:
+    if username:
+        for user in users_points:
+            if user == username:
+                users_points[f"> {user}"] = users_points[user]
+                del users_points[user]
+                break
     logging.info(
         tabulate(
             sorted(users_points.items(), key=lambda x: x[1], reverse=True),
@@ -148,7 +158,7 @@ async def run(_playwright, args):
 
             updated_score = await compare_score(page, current_users_points)
             if updated_score != current_users_points:
-                await print_score(updated_score)
+                await print_score(updated_score, args.username)
                 current_users_points = updated_score
 
             if updated_score:
@@ -191,16 +201,20 @@ async def run(_playwright, args):
 async def main():
     parameters = ArgumentParser()
     parameters.add_argument('--headless', action='store_true', help='Run in headless mode')
-    parameters.add_argument('--username', type=str, help='Username to use in the game', default='ik/test')
+    parameters.add_argument('--username', type=str, help='Username to use in the game')
     parameters.add_argument('--task', type=str, help='Task to run', default='stopots')
     args = parameters.parse_args()
-    while True:
-        try:
-            async with async_playwright() as _playwright:
-                logging.info("Starting script...")
-                await run(_playwright, args)
-        except Exception as e:
-            logging.error(f"Script encountered a TimeoutError: {e}. Restarting the script...")
+    if not args.username:
+        args.username = fake.profile(fields=['username'])['username']
+        logging.info(f"Generated username: {args.username}")
+    async with async_playwright() as _playwright:
+        logging.info("Starting script...")
+        await run(_playwright, args)
+    # while True:
+    #     try:
+    #         pass
+    #     except Exception as e:
+    #         logging.error(f"Script encountered a TimeoutError: {e}. Restarting the script...")
 
 
 if __name__ == "__main__":
