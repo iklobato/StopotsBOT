@@ -6,14 +6,13 @@ from unidecode import unidecode
 import asyncio
 import json
 import logging
-from random import choice, random
+from random import choice, random, uniform
 
 from playwright.async_api import async_playwright
 
 from faker import Faker
 
 fake = Faker('pt_BR')
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -128,8 +127,8 @@ async def run(_playwright, args):
                 logging.warning(f"Attempt {attempt + 1} failed, retrying...")
                 if attempt + 1 == retries:
                     raise
-                logging.info(f"Waiting {60 * retries**(attempt + 1)} seconds before retrying...")
-                await asyncio.sleep(60 * retries**(attempt + 1))  # Exponential backoff
+                logging.info(f"Waiting {60 * retries ** (attempt + 1)} seconds before retrying...")
+                await asyncio.sleep(60 * retries ** (attempt + 1))  # Exponential backoff
 
     await safe_goto(page, STOPOTS_URL)
 
@@ -190,8 +189,12 @@ async def run(_playwright, args):
                 label_text = unidecode(label_text)
                 label_text = LABELS_MAP.get(label_text, label_text)
                 answer_text = await get_word_answer(letter.lower(), label_text.lower())
-                await page.fill(f'xpath={input_xpath}', answer_text)
                 logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
+                for _l in answer_text:
+                    await page.click(f'xpath={input_xpath}')
+                    await page.keyboard.press('End')
+                    await page.keyboard.type(_l)
+                    await asyncio.sleep(round(uniform(0, 0.5), 1))
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             await page.screenshot(path=f"error_{random()}.png")
