@@ -194,7 +194,6 @@ async def run(_playwright, args):
                     await page.click(f'xpath={input_xpath}')
                     await page.keyboard.press('End')
                     await page.keyboard.type(_l)
-                    await asyncio.sleep(round(uniform(0, 0.5), 1))
         except Exception as e:
             logging.error(f"An error occurred: {e}")
             await page.screenshot(path=f"error_{random()}.png")
