@@ -86,13 +86,12 @@ async def print_score(users_points: dict, username=None) -> None:
                 users_points[f"> {user}"] = users_points[user]
                 del users_points[user]
                 break
-    logging.info(
-        tabulate(
-            sorted(users_points.items(), key=lambda x: x[1], reverse=True),
-            headers=['user', 'points'],
-            tablefmt='outline'
-        )
+    t = tabulate(
+        sorted(users_points.items(), key=lambda x: x[1], reverse=True),
+        headers=['user', 'points'],
+        tablefmt='outline'
     )
+    logging.info(f'\n{t}')
 
 
 async def click_ready_if_exists(page):
