@@ -106,6 +106,63 @@ async def click_ready_if_exists(page):
         await asyncio.sleep(1)
 
 
+async def check_new_messages(page, last_message_count=0):
+    chat_xpath = '//div[@id="chat"]//ul[@class="historic"]/li'
+
+    try:
+        # Get all message elements in the chat
+        messages = await page.query_selector_all(f'xpath={chat_xpath}')
+        current_message_count = len(messages)
+
+        # If there are new messages, process and print them
+        if current_message_count > last_message_count:
+            new_messages = messages[last_message_count:current_message_count]
+            for message in new_messages:
+                message_class = await message.get_attribute("class")
+
+                if message_class == "message":
+                    username = await message.query_selector('strong')
+                    text = await message.query_selector('span')
+                    if username and text:
+                        username_text = await username.text_content()
+                        text_content = await text.text_content()
+                        logging.info(f'Chat (Message): {username_text}: {text_content}')
+
+                elif message_class == "system":
+                    username = await message.query_selector('strong')
+                    text = await message.query_selector('span')
+                    if username and text:
+                        username_text = await username.text_content()
+                        text_content = await text.text_content()
+                        logging.info(f'Chat (System): {username_text} {text_content}')
+
+                # elif message_class == "votingKick":
+                #     voter = await message.query_selector('strong')
+                #     voted_user = await message.query_selector_all('strong')
+                #     action_text = await message.query_selector('span')
+                #     if voter and voted_user and action_text:
+                #         voter_text = await voter.voter_text()
+                #         voted_user_text = await voted_user.text_content()
+                #         action_text_content = await action_text.text_content()
+                #         logging.info(f'Chat (VotingKick): {voter_text} {action_text_content} {voted_user_text}')
+
+                elif message_class == "actionStop":
+                    username = await message.query_selector('strong')
+                    action_text = await message.query_selector('span')
+                    if username and action_text:
+                        username_text = await username.text_content()
+                        action_text_content = await action_text.text_content()
+                        logging.info(f'Chat (ActionStop): {username_text} {action_text_content}')
+
+            # Update the last message count
+            last_message_count = current_message_count
+
+    except Exception as e:
+        logging.error(f"An error occurred while checking for new messages: {e}")
+
+    return last_message_count
+
+
 async def run(_playwright, args):
     logging.info("Launching browser...")
     browser = await _playwright.chromium.launch(headless=args.headless)
@@ -143,15 +200,17 @@ async def run(_playwright, args):
 
     last_letter = None
     current_users_points = None
+    last_message_count = 0
     while True:
         try:
 
             await check_and_press_ok_button(page)  # anti ban
             await click_ready_if_exists(page)  # ready button
+            last_message_count = await check_new_messages(page, last_message_count)  # chat
 
             letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
             letter = await page.text_content(f'xpath={letter_xpath}')
-            if letter == last_letter:
+            if all([letter == last_letter, letter != '?']):
                 continue
 
             updated_score = await compare_score(page, current_users_points)
