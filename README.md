@@ -3,6 +3,8 @@
 ## Overview
 StopotsBot is an automated bot designed to play the game "Stopots" by automatically filling in the answers based on pre-defined categories and letters. This bot interacts with the Stopots website using Playwright, filling out form fields and retrieving scores from the game interface. The answers are generated based on a JSON dictionary of predefined letter-category answers.
 
+https://github.com/user-attachments/assets/7987a2d1-1daf-4620-86d8-2fc647aead91
+
 ## How It Works
 The bot operates through the following steps:
 1. **Launching a Browser:** Uses Playwright to control a Chromium-based browser and navigate to the Stopots game page.
