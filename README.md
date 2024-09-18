@@ -22,17 +22,46 @@ To run the bot, ensure you have Python installed, along with the required depend
    ```bash
    git clone https://github.com/iklobato/StopotsBOT.git
    cd stopotsbot
-    ```
-2. Install the dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
+2. 
 3. Run the bot:
     ```bash
-    python stopotsbot.py --headless --username <username>
+    docker compose up
     ```
-    - `--headless`: Run the browser in headless mode (without a GUI).
-    - `--username`: Your username to use in the game.
+
+### Logging and Output
+The bot logs its actions, such as the letter being used, the category, and the generated answers. It also logs the score updates for all players in the game.
+```bash
+server-1  | 2024-09-17 23:52:47,700 - INFO - Current letter: ?
+server-1  | 2024-09-17 23:52:53,222 - INFO - 
+server-1  | +---------------+----------+
+server-1  | | user          |   points |
+server-1  | +===============+==========+
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | xxxxxxx       |        0 |
+server-1  | | > you         |        0 |
+server-1  | +---------------+----------+
+server-1  | 2024-09-17 23:52:53,223 - INFO - Current letter: R
+server-1  | 2024-09-17 23:52:53,243 - INFO - [R 1] Esporte: Rugbi
+server-1  | 2024-09-17 23:52:53,662 - INFO - [R 2] Animal: Rinoceronte
+server-1  | 2024-09-17 23:52:54,458 - INFO - [R 3] Musica: Rosanna
+server-1  | 2024-09-17 23:52:54,961 - INFO - [R 4] Meio De Transporte: Rolima
+server-1  | 2024-09-17 23:52:55,396 - INFO - [R 5] Fantasia: Robin
+server-1  | 2024-09-17 23:52:55,779 - INFO - [R 6] Desenho Animado: Riquinho
+server-1  | 2024-09-17 23:52:56,447 - INFO - [R 7] Filme: Robin Hood
+server-1  | 2024-09-17 23:52:57,225 - INFO - [R 8] Brinquedo: Robo
+server-1  | 2024-09-17 23:52:57,528 - INFO - [R 9] Palavra Em Espanhol: Roja
+server-1  | 2024-09-17 23:52:57,842 - INFO - [R 10] Profissao: Radialista
+server-1  | 2024-09-17 23:52:58,544 - INFO - [R 11] Sobremesa: Rabanada
+server-1  | 2024-09-17 23:52:59,162 - INFO - [R 12] Idioma: Romeno
+```
+As the username is randomly generated, it will be marked with a `>` symbol in the score table.
 
 ### Dictionary File Structure
 The bot uses a JSON file (dictionary.json) to generate the answers. The file structure looks like this:
@@ -40,43 +69,13 @@ The bot uses a JSON file (dictionary.json) to generate the answers. The file str
 {
     "A": {
         "Animais": ["Anta", "Antílope", "Avestruz"],
-        "Cidades": ["Aracaju", "Aparecida", "Araguaína"]
+        "Cidades": ["Aracaju", "Aparecida", "Araguaína"],
+        ...
     },
     "B": {
         "Animais": ["Baleia", "Borboleta", "Búfalo"],
-        "Cidades": ["Barueri", "Belo Horizonte", "Blumenau"]
+        "Cidades": ["Barueri", "Belo Horizonte", "Blumenau"],
+        ...
     }
 }
-```
-
-### Logging and Output
-The bot logs its actions, such as the letter being used, the category, and the generated answers. It also logs the score updates for all players in the game.
-```bash
-2024-09-04 23:11:46,630 - INFO - Current letter: I
-2024-09-04 23:11:46,656 - INFO - [I 1] Nome Masculino: Ivo
-2024-09-04 23:11:46,767 - INFO - +---------------+----------+
-| user          |   points |
-+===============+==========+
-| ik/3          |      110 |
-| xxxxxxx       |       50 |
-| xxxxxxxxxxxxx |       40 |
-| xxxxxx        |       20 |
-| xxxx          |        0 |
-| xxxxxxxxxx    |        0 |
-| xxxxx         |        0 |
-| xxxxxxxxxx    |        0 |
-| xxxxxxxxx     |        0 |
-| xxxx          |        0 |
-+---------------+----------+
-2024-09-04 23:11:46,800 - INFO - [I 2] Sabor De Pizza: Italiana
-2024-09-04 23:11:46,917 - INFO - [I 3] Desenho Animado: Invasor Zim
-2024-09-04 23:11:47,073 - INFO - [I 4] Verbo: Imitar
-2024-09-04 23:11:47,192 - INFO - [I 5] Pais: Italia
-2024-09-04 23:11:47,348 - INFO - [I 6] Time Esportivo: Irlanda
-2024-09-04 23:11:47,468 - INFO - [I 7] Doce: I-Naosei
-2024-09-04 23:11:47,586 - INFO - [I 8] Profissao: Instrumentista
-2024-09-04 23:11:47,705 - INFO - [I 9] Remedio: Ibuprofeno
-2024-09-04 23:11:47,825 - INFO - [I 10] Palavra Em Ingles: Investigation
-2024-09-04 23:11:47,974 - INFO - [I 11] Pch: Intestino Grosso
-2024-09-04 23:11:48,085 - INFO - [I 12] Meio De Transporte: Iate
 ```
