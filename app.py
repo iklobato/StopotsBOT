@@ -6,7 +6,7 @@ from unidecode import unidecode
 import asyncio
 import json
 import logging
-from random import choice, random, uniform
+from random import choice, random
 
 from playwright.async_api import async_playwright
 
@@ -210,7 +210,7 @@ async def run(_playwright, args):
 
             letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
             letter = await page.text_content(f'xpath={letter_xpath}')
-            if all([letter == last_letter, letter != '?']):
+            if letter in [last_letter, '?']:
                 continue
 
             updated_score = await compare_score(page, current_users_points)
@@ -268,13 +268,7 @@ async def main():
         args.username = fake.profile(fields=['username'])['username']
         logging.info(f"Generated username: {args.username}")
     async with async_playwright() as _playwright:
-        logging.info("Starting script...")
         await run(_playwright, args)
-    # while True:
-    #     try:
-    #         pass
-    #     except Exception as e:
-    #         logging.error(f"Script encountered a TimeoutError: {e}. Restarting the script...")
 
 
 if __name__ == "__main__":
