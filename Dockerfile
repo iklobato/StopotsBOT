@@ -48,6 +48,4 @@ RUN playwright install
 COPY app.py .
 COPY dictionary.json .
 
-EXPOSE 8000
-
 ENTRYPOINT ["python", "app.py", "--headless"]
