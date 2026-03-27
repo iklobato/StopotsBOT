@@ -1,274 +1,299 @@
 import re
-from argparse import ArgumentParser
-
-from tabulate import tabulate
-from unidecode import unidecode
-import asyncio
 import json
 import logging
+import asyncio
+from argparse import ArgumentParser
+from enum import Enum
 from random import choice, random
 
 from playwright.async_api import async_playwright
-
+from tabulate import tabulate
+from unidecode import unidecode
 from faker import Faker
 
-fake = Faker('pt_BR')
+fake = Faker("pt_BR")
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()],
 )
 
-LABELS_MAP = {
-    'CEPCidade, Estado ou Pais': 'cep',
-    'GentilicoAdjetivo patrio (Ex: Brasileiro, Mineiro, Curitibano...)': 'gentilico',
-    'FLVFruta, Legume ou Verdura': 'flv',
-    'JLRJornal, Livro ou Revista': 'jlr',
-    'PCHParte do Corpo Humano': 'pch',
-    'PDAPersonagem de Desenho Animado': 'pda',
-    'MSEMinha Sogra E...': 'mse',
-}
 
-STOPOTS_URL = "https://stopots.com/system/"
-letters_answers_file = open("dictionary.json")
-letters_answers_json = json.load(letters_answers_file)
-letters_answers_file.close()
+class XPath(str, Enum):
+    OK_BUTTON = "/html/body/div[1]/div[1]/div[2]/div/div/div/div[2]/button/strong"
+    READY_BUTTON = "/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/button/strong"
+    LETTER = "/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span"
+    USERNAME_INPUT = "/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[1]/div[2]/input"
+    HEADER_BUTTON = "/html/body/header/div[1]/div[2]/div[1]/form/button/strong"
+    SUBMIT_BUTTON = "/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[2]/button[1]"
+    USERS_LIST = "ul#users li"
+    CHAT_MESSAGES = '//div[@id="chat"]//ul[@class="historic"]/li'
+    CATEGORY_LABEL = "/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/span"
+    CATEGORY_INPUT = "/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/input"
 
 
-async def check_and_press_ok_button(page):
-    button_xpath = '/html/body/div[1]/div[1]/div[2]/div/div/div/div[2]/button/strong'
-    b = await page.query_selector(f'xpath={button_xpath}')
-    if not b:
-        return
-    button_text = await page.text_content(f'xpath={button_xpath}')
-    is_disable = await page.evaluate(f'el => el.disabled', f'xpath={button_xpath}')
-    if not is_disable and button_text and button_text.strip().lower() in ['ok']:
-        await page.click(f'xpath={button_xpath}')
+class Label(str, Enum):
+    CEP = "CEPCidade, Estado ou Pais"
+    GENTILICO = "GentilicoAdjetivo patrio"
+    FLV = "FLVFruta, Legume ou Verdura"
+    JLR = "JLRJornal, Livro ou Revista"
+    PCH = "PCHParte do Corpo Humano"
+    PDA = "PDAPersonagem de Desenho Animado"
+    MSE = "MSEMinha Sogra E..."
+
+    @classmethod
+    def to_key(cls, value: str) -> str:
+        unidecoded = unidecode(value)
+        for member in cls:
+            if unidecode(member.value).startswith(unidecoded):
+                return unidecode(member.name.lower())
+        return unidecoded
 
 
-async def get_word_answer(chosen_letter: str, category: str):
-    category_parsed = unidecode(category)
-    letter_info = letters_answers_json.get(chosen_letter, {})
-    answer = letter_info.get(category_parsed)
-    if not answer:
-        return f"{chosen_letter}-NaoSei"
-    answer = choice(answer)
-    return answer
+class StopotsURL(str, Enum):
+    BASE = "https://stopots.com/pt/"
 
 
-async def compare_score(page, current_points=None) -> dict:
-    users_points = {}
-    users = await page.locator('ul#users li').all()
+class DictionaryService:
+    def __init__(self, filepath: str = "dictionary.json"):
+        self._filepath = filepath
+        self._data: dict | None = None
 
-    if not users:
-        logging.warning("No users found.")
-        return current_points
+    def _load(self) -> None:
+        if self._data is None:
+            with open(self._filepath) as f:
+                self._data = json.load(f)
 
-    for user in users:
-        username = await user.locator('.nick').text_content()
-        if 'Vazio' in username:
-            continue
-
-        span_count = await user.locator('span').count()
-        if span_count > 0:
-            points_text = await user.locator('span').text_content()
-            points = int(points_text.replace(' pts', '').strip())
-            users_points[unidecode(username.strip())] = points
-
-    return users_points
+    def get_answer(self, letter: str, category: str) -> str:
+        self._load()
+        category_key = Label.to_key(category)
+        letter_data = self._data.get(letter.lower(), {})
+        answers = letter_data.get(category_key)
+        if not answers:
+            return f"{letter}-NaoSei"
+        return choice(answers)
 
 
-async def print_score(users_points: dict, username=None) -> None:
-    if username:
-        for user in users_points:
-            if user == username:
-                users_points[f"> {user}"] = users_points[user]
-                del users_points[user]
-                break
-    t = tabulate(
-        sorted(users_points.items(), key=lambda x: x[1], reverse=True),
-        headers=['user', 'points'],
-        tablefmt='outline'
-    )
-    logging.info(f'\n{t}')
+class BrowserHelper:
+    def __init__(self, page):
+        self.page = page
 
+    async def click_if_enabled(self, xpath: XPath, *valid_texts: str) -> bool:
+        element = await self.page.query_selector(f"xpath={xpath.value}")
+        if not element:
+            return False
 
-async def click_ready_if_exists(page):
-    ready_button_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/button/strong'
-    button = await page.query_selector(f'xpath={ready_button_xpath}')
-    if not button:
-        return
-    button_text = await page.text_content(f'xpath={ready_button_xpath}')
-    is_disable = await page.evaluate(f'el => el.disabled', f'xpath={ready_button_xpath}')
-    if not is_disable and button_text and button_text.strip().lower() in ['estou pronto', 'avaliar']:
-        await page.click(f'xpath={ready_button_xpath}')
-        await asyncio.sleep(1)
+        text = await self.page.text_content(f"xpath={xpath.value}")
+        is_disabled = await self.page.evaluate("el => el.disabled", element)
 
+        if is_disabled or not text:
+            return False
 
-async def check_new_messages(page, last_message_count=0):
-    chat_xpath = '//div[@id="chat"]//ul[@class="historic"]/li'
+        if text.strip().lower() not in [t.lower() for t in valid_texts]:
+            return False
 
-    try:
-        # Get all message elements in the chat
-        messages = await page.query_selector_all(f'xpath={chat_xpath}')
-        current_message_count = len(messages)
+        await self.page.click(f"xpath={xpath.value}")
+        return True
 
-        # If there are new messages, process and print them
-        if current_message_count > last_message_count:
-            new_messages = messages[last_message_count:current_message_count]
-            for message in new_messages:
-                message_class = await message.get_attribute("class")
-
-                if message_class == "message":
-                    username = await message.query_selector('strong')
-                    text = await message.query_selector('span')
-                    if username and text:
-                        username_text = await username.text_content()
-                        text_content = await text.text_content()
-                        logging.info(f'Chat (Message): {username_text}: {text_content}')
-
-                elif message_class == "system":
-                    username = await message.query_selector('strong')
-                    text = await message.query_selector('span')
-                    if username and text:
-                        username_text = await username.text_content()
-                        text_content = await text.text_content()
-                        logging.info(f'Chat (System): {username_text} {text_content}')
-
-                # elif message_class == "votingKick":
-                #     voter = await message.query_selector('strong')
-                #     voted_user = await message.query_selector_all('strong')
-                #     action_text = await message.query_selector('span')
-                #     if voter and voted_user and action_text:
-                #         voter_text = await voter.voter_text()
-                #         voted_user_text = await voted_user.text_content()
-                #         action_text_content = await action_text.text_content()
-                #         logging.info(f'Chat (VotingKick): {voter_text} {action_text_content} {voted_user_text}')
-
-                elif message_class == "actionStop":
-                    username = await message.query_selector('strong')
-                    action_text = await message.query_selector('span')
-                    if username and action_text:
-                        username_text = await username.text_content()
-                        action_text_content = await action_text.text_content()
-                        logging.info(f'Chat (ActionStop): {username_text} {action_text_content}')
-
-            # Update the last message count
-            last_message_count = current_message_count
-
-    except Exception as e:
-        logging.error(f"An error occurred while checking for new messages: {e}")
-
-    return last_message_count
-
-
-async def run(_playwright, args):
-    logging.info("Launching browser...")
-    browser = await _playwright.chromium.launch(headless=args.headless)
-    context = await browser.new_context(
-        locale="pt-BR",
-    )
-    page = await context.new_page()
-    page.set_default_timeout(180_000)
-
-    logging.info(f"Navigating to {STOPOTS_URL}")
-
-    async def safe_goto(_page, url, retries=5):
+    async def safe_goto(self, url: str, retries: int = 5) -> None:
         for attempt in range(retries):
             try:
-                await _page.goto(url, wait_until='load')
+                await self.page.goto(url, wait_until="load")
                 return
             except TimeoutError:
                 logging.warning(f"Attempt {attempt + 1} failed, retrying...")
                 if attempt + 1 == retries:
                     raise
-                logging.info(f"Waiting {60 * retries ** (attempt + 1)} seconds before retrying...")
-                await asyncio.sleep(60 * retries ** (attempt + 1))  # Exponential backoff
+                wait_time = 60 * (attempt + 1)
+                logging.info(f"Waiting {wait_time} seconds before retrying...")
+                await asyncio.sleep(wait_time)
 
-    await safe_goto(page, STOPOTS_URL)
+    async def type_letter_by_letter(self, xpath: str, text: str) -> None:
+        await self.page.click(f"xpath={xpath}")
+        await self.page.keyboard.press("End")
+        for char in text:
+            await self.page.keyboard.type(char)
 
-    username_input_xpath = '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[1]/div[2]/input'
-    header_button_xpath = '/html/body/header/div[1]/div[2]/div[1]/form/button/strong'
-    submit_button_xpath = '/html/body/div[1]/div[1]/div[1]/div/div[2]/div[2]/div[2]/button[1]'
 
-    if await page.query_selector(f'xpath={username_input_xpath}') is None:
-        await page.click(f'xpath={header_button_xpath}')
+class ChatHandler:
+    def __init__(self, browser: BrowserHelper):
+        self._browser = browser
+        self._last_count = 0
 
-    await page.fill(f'xpath={username_input_xpath}', args.username)
-    await page.click(f'xpath={submit_button_xpath}')
+    async def check_new_messages(self) -> int:
+        messages = await self._browser.page.query_selector_all(f"xpath={XPath.CHAT_MESSAGES.value}")
+        current_count = len(messages)
 
-    last_letter = None
-    current_users_points = None
-    last_message_count = 0
-    while True:
-        try:
+        if current_count <= self._last_count:
+            return self._last_count
 
-            await check_and_press_ok_button(page)  # anti ban
-            await click_ready_if_exists(page)  # ready button
-            last_message_count = await check_new_messages(page, last_message_count)  # chat
+        new_messages = messages[self._last_count : current_count]
 
-            letter_xpath = '/html/body/div[1]/div[1]/div[1]/div/div/div[1]/div[2]/div[2]/div/ul/li[1]/span'
-            letter = await page.text_content(f'xpath={letter_xpath}')
-            if letter in [last_letter, '?']:
+        for msg in new_messages:
+            msg_class = await msg.get_attribute("class")
+            username = await msg.query_selector("strong")
+            text = await msg.query_selector("span")
+
+            if not (username and text):
                 continue
 
-            updated_score = await compare_score(page, current_users_points)
-            if updated_score != current_users_points:
-                await print_score(updated_score, args.username)
-                current_users_points = updated_score
+            username_text = await username.text_content()
+            text_content = await text.text_content()
 
-            if updated_score:
-                ik_user_pattern = re.compile(r'ik/\d{1,2}')
-                if any(ik_user_pattern.match(username) for username in updated_score.keys()):
-                    if not any(username == args.username for username in updated_score.keys()):
-                        logging.info("'ik/#' found in the room, searching for another room.")
-                        await page.close()
+            if msg_class == "message":
+                logging.info(f"Chat (Message): {username_text}: {text_content}")
+            elif msg_class == "system":
+                logging.info(f"Chat (System): {username_text} {text_content}")
+            elif msg_class == "actionStop":
+                logging.info(f"Chat (ActionStop): {username_text} {text_content}")
 
-                        page = await context.new_page()
-                        await safe_goto(page, STOPOTS_URL)
-                        continue
+        self._last_count = current_count
+        return current_count
 
-            last_letter = letter
-            logging.info(f"Current letter: {letter.upper()}")
 
-            for i in range(1, 13):
-                label_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/span'
-                input_xpath = f'/html/body/div[1]/div[1]/div[1]/div/div/div[2]/div[2]/div/div[1]/label[{i}]/input'
+class ScoreManager:
+    def __init__(self, browser: BrowserHelper):
+        self._browser = browser
 
-                if await page.query_selector(f'xpath={label_xpath}') is None:
-                    break
+    async def get_scores(self) -> dict[str, int]:
+        users = await self._browser.page.locator(XPath.USERS_LIST.value).all()
+        scores: dict[str, int] = {}
 
-                input_text = await page.input_value(f'xpath={input_xpath}')  # Await input_value()
-                if input_text and input_text != "":
+        for user in users:
+            username = await user.locator(".nick").text_content()
+            if "Vazio" in username:
+                continue
+
+            spans = await user.locator("span").count()
+            if spans > 0:
+                points_text = await user.locator("span").text_content()
+                points = int(points_text.replace(" pts", "").strip())
+                scores[unidecode(username.strip())] = points
+
+        return scores
+
+    async def print_scores(self, scores: dict[str, int], current_user: str | None = None) -> None:
+        if current_user and current_user in scores:
+            scores[f"> {current_user}"] = scores.pop(current_user)
+
+        table = tabulate(
+            sorted(scores.items(), key=lambda x: x[1], reverse=True),
+            headers=["user", "points"],
+            tablefmt="outline",
+        )
+        logging.info(f"\n{table}")
+
+
+class GameEngine:
+    def __init__(self, page, args):
+        self._page = page
+        self._args = args
+        self._browser = BrowserHelper(page)
+        self._dictionary = DictionaryService()
+        self._chat = ChatHandler(self._browser)
+        self._scores = ScoreManager(self._browser)
+        self._last_letter: str | None = None
+
+    async def setup(self) -> None:
+        await self._browser.safe_goto(StopotsURL.BASE.value)
+
+        username_input = XPath.USERNAME_INPUT.value
+        if await self._page.query_selector(f"xpath={username_input}") is None:
+            await self._browser.page.click(f"xpath={XPath.HEADER_BUTTON.value}")
+
+        await self._page.fill(f"xpath={username_input}", self._args.username)
+        await self._browser.page.click(f"xpath={XPath.SUBMIT_BUTTON.value}")
+
+    async def run(self) -> None:
+        await self.setup()
+
+        while True:
+            try:
+                await self._browser.click_if_enabled(XPath.OK_BUTTON, "ok")
+                await self._browser.click_if_enabled(XPath.READY_BUTTON, "estou pronto", "avaliar")
+                await self._chat.check_new_messages()
+
+                letter = await self._browser.page.text_content(f"xpath={XPath.LETTER.value}")
+
+                if letter in (self._last_letter, "?"):
                     continue
 
-                label_text = await page.text_content(f'xpath={label_xpath}')  # Await text_content()
-                label_text = unidecode(label_text)
-                label_text = LABELS_MAP.get(label_text, label_text)
-                answer_text = await get_word_answer(letter.lower(), label_text.lower())
-                logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer_text.title()}")
-                for _l in answer_text:
-                    await page.click(f'xpath={input_xpath}')
-                    await page.keyboard.press('End')
-                    await page.keyboard.type(_l)
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            await page.screenshot(path=f"error_{random()}.png")
-            break
+                await self._update_and_print_scores()
+
+                if await self._should_switch_room():
+                    await self._switch_room()
+                    continue
+
+                self._last_letter = letter
+                logging.info(f"Current letter: {letter.upper()}")
+                await self._fill_categories(letter)
+
+            except Exception as e:
+                logging.error(f"An error occurred: {e}")
+                await self._page.screenshot(path=f"error_{random()}.png")
+                break
+
+    async def _update_and_print_scores(self) -> None:
+        current_scores = await self._scores.get_scores()
+        await self._scores.print_scores(current_scores, self._args.username)
+
+    async def _should_switch_room(self) -> bool:
+        scores = await self._scores.get_scores()
+        ik_pattern = re.compile(r"ik/\d{1,2}")
+
+        has_ik_user = any(ik_pattern.match(u) for u in scores.keys())
+        has_my_user = any(u == self._args.username for u in scores.keys())
+
+        return has_ik_user and not has_my_user
+
+    async def _switch_room(self) -> None:
+        logging.info("'ik/#' found in the room, searching for another room.")
+        await self._page.close()
+        self._page = await self._page.context.new_page()
+        self._browser = BrowserHelper(self._page)
+        self._chat = ChatHandler(self._browser)
+        self._scores = ScoreManager(self._browser)
+        await self._browser.safe_goto(StopotsURL.BASE.value)
+
+    async def _fill_categories(self, letter: str) -> None:
+        for i in range(1, 13):
+            label_xpath = XPath.CATEGORY_LABEL.value.format(i=i)
+            input_xpath = XPath.CATEGORY_INPUT.value.format(i=i)
+
+            if await self._page.query_selector(f"xpath={label_xpath}") is None:
+                break
+
+            input_text = await self._page.input_value(f"xpath={input_xpath}")
+            if input_text:
+                continue
+
+            label_text = await self._browser.page.text_content(f"xpath={label_xpath}")
+            answer = self._dictionary.get_answer(letter.lower(), label_text)
+
+            logging.info(f"[{letter.upper()} {i}] {label_text.title()}: {answer.title()}")
+            await self._browser.type_letter_by_letter(input_xpath, answer)
 
 
 async def main():
-    parameters = ArgumentParser()
-    parameters.add_argument('--headless', action='store_true', help='Run in headless mode')
-    parameters.add_argument('--username', type=str, help='Username to use in the game')
-    parameters.add_argument('--task', type=str, help='Task to run', default='stopots')
-    args = parameters.parse_args()
+    parser = ArgumentParser()
+    parser.add_argument("--headless", action="store_true", help="Run in headless mode")
+    parser.add_argument("--username", type=str, help="Username to use in the game")
+    parser.add_argument("--task", type=str, default="stopots")
+    args = parser.parse_args()
+
     if not args.username:
-        args.username = fake.profile(fields=['username'])['username']
+        args.username = fake.profile(fields=["username"])["username"]
         logging.info(f"Generated username: {args.username}")
-    async with async_playwright() as _playwright:
-        await run(_playwright, args)
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=args.headless)
+        context = await browser.new_context(locale="pt-BR")
+        page = await context.new_page()
+        page.set_default_timeout(180_000)
+
+        engine = GameEngine(page, args)
+        await engine.run()
 
 
 if __name__ == "__main__":
