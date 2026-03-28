@@ -1127,8 +1127,7 @@ const DICTIONARY = {
     remedio: ["quadriderm"],
     "sabor de pizza": ["queijo", "quatro queijos"],
     "sabor de sorvete": ["queijadinha", "quindim"],
-    sobrenome: ["quibe"],
-    sobrenome: ["queiroz", "quintana"],
+    sobrenome: ["quibe", "queiroz", "quintana"],
     "super-heroi": ["quicksilver"],
     serie: ["queer as folk", "queer eye"],
     "time esportivo": ["queens park rangers"],
@@ -1714,7 +1713,7 @@ const DICTIONARY = {
     mse: [],
     musica: [],
     "nome femenino": [],
-    "nome masculino: [],
+    "nome masculino": [],
     nome: [],
     objeto: [],
     "palavra em espanhol": [],
@@ -1746,13 +1745,20 @@ function removeAccents(str) {
 }
 
 function getAnswer(letter, category) {
-  const letterData = DICTIONARY[letter.toLowerCase()];
-  if (!letterData) return letter + '-NaoSei';
+  const letterStr = letter == null ? '' : String(letter);
+  const categoryStr = category == null ? '' : String(category);
   
-  const categoryKey = removeAccents(category.toLowerCase()).trim();
+  const letterData = DICTIONARY[letterStr.toLowerCase()];
+  if (!letterData) return letterStr + '-NaoSei';
+  
+  const categoryKey = removeAccents(categoryStr.toLowerCase()).trim();
   const answers = letterData[categoryKey];
   
-  if (!answers || answers.length === 0) return letter + '-NaoSei';
+  if (!answers || answers.length === 0) return letterStr + '-NaoSei';
   
   return answers[Math.floor(Math.random() * answers.length)];
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { DICTIONARY, removeAccents, getAnswer };
 }

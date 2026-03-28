@@ -1,4 +1,4 @@
-(function() {
+(function(global) {
     'use strict';
 
     const LETTER_XPATH = '//p[contains(@class, "letter")]';
@@ -12,6 +12,18 @@
     let lastLetter = null;
     let gameLoopInterval = null;
 
+    let getAnswer;
+    if (typeof require !== 'undefined') {
+        const dict = require('./dictionary.js');
+        getAnswer = dict.getAnswer;
+    } else if (typeof window !== 'undefined') {
+        getAnswer = window.getAnswer;
+    }
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {};
+    }
+
     function log(msg) {
         console.log(`[Stopots-AutoFill] ${msg}`);
     }
@@ -21,6 +33,7 @@
     }
 
     function getElementByXPath(xpath, parent = document) {
+        if (!xpath) return null;
         return document.evaluate(
             xpath,
             parent,
@@ -31,6 +44,7 @@
     }
 
     function getElementsByXPath(xpath, parent = document) {
+        if (!xpath) return [];
         const result = document.evaluate(
             xpath,
             parent,
@@ -170,9 +184,35 @@
         });
     }
 
-    if (document.readyState === 'loading') {
+    if (typeof global !== 'undefined' && global.__TEST_MODE__) {
+        // Skip init during tests
+    } else if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
         init();
     }
-})();
+
+    if (typeof module !== 'undefined' && module.exports) {
+        module.exports = {
+            LETTER_XPATH,
+            JOGAR_BUTTON_XPATH,
+            AVALIAR_BUTTON_XPATH,
+            CATEGORY_LABEL_XPATH,
+            CATEGORY_INPUT_XPATH,
+            getElementByXPath,
+            getElementsByXPath,
+            getCurrentLetter,
+            getCategories,
+            fillCategory,
+            clickJogarButton,
+            clickAvaliarButton,
+            processRound,
+            setEnabled,
+            get isEnabled() { return isEnabled; },
+            set isEnabled(val) { isEnabled = val; },
+            get lastLetter() { return lastLetter; },
+            set lastLetter(val) { lastLetter = val; },
+            get gameLoopInterval() { return gameLoopInterval; },
+        };
+    }
+})(typeof window !== 'undefined' ? window : global);

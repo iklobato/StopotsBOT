@@ -1,0 +1,17 @@
+{
+  "name": "stopots-autofill",
+  "version": "1.0.0",
+  "description": "Unit tests for Stopots Chrome extension",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix ."
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
