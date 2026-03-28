@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Stopots Auto-Fill",
+  "version": "1.0",
+  "description": "Automatically fills Stopots game answers",
+  "permissions": ["storage"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.stopots.com/*"],
+      "js": ["dictionary.js", "content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
