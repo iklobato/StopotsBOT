@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Unit tests for Stopots Chrome extension",
   "scripts": {
+    "build:dict": "node -e \"const fs=require('fs'),m='// END GENERATED DATA',f='dictionary.js',t=fs.readFileSync(f,'utf8');if(!t.includes(m))throw new Error(m+' marker missing in '+f);fs.writeFileSync(f,'const DICTIONARY = '+JSON.stringify(require('../dictionary.json'),null,2)+';\\n\\n'+m+t.split(m)[1])\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
