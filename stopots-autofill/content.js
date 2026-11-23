@@ -86,6 +86,10 @@
 
     function fillCategory(input, letter, category) {
         const answer = getAnswer(letter.toLowerCase(), category);
+        if (!answer) {
+            log(`Skipping: no answer for ${category}`);
+            return;
+        }
         input.value = answer;
         input.dispatchEvent(new Event('input', { bubbles: true }));
         input.dispatchEvent(new Event('change', { bubbles: true }));

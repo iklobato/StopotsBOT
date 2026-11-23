@@ -105,17 +105,17 @@ describe('getAnswer', () => {
 
   test('returns fallback for invalid letter', () => {
     const answer = getAnswer('zz', 'animal');
-    expect(answer).toBe('zz-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('returns fallback for invalid category', () => {
     const answer = getAnswer('a', 'invalid-category-xyz');
-    expect(answer).toBe('a-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('returns fallback for empty category', () => {
     const answer = getAnswer('a', '');
-    expect(answer).toBe('a-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('handles lowercase category', () => {
@@ -149,7 +149,7 @@ describe('getAnswer', () => {
 
   test('handles space-only category as invalid', () => {
     const answer = getAnswer('a', '   ');
-    expect(answer).toBe('a-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('multiple calls return random answers from pool', () => {
@@ -170,7 +170,7 @@ describe('getAnswer', () => {
 
   test('handles empty array category returns fallback', () => {
     const answer = getAnswer('k', 'metodologia');
-    expect(answer).toBe('k-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('handles category with underscore', () => {
@@ -195,12 +195,12 @@ describe('getAnswer', () => {
 
   test('handles null category', () => {
     const answer = getAnswer('a', null);
-    expect(answer).toBe('a-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('handles undefined category', () => {
     const answer = getAnswer('a', undefined);
-    expect(answer).toBe('a-NaoSei');
+    expect(answer).toBe('');
   });
 
   test('handles numeric letter', () => {
@@ -232,6 +232,29 @@ describe('getAnswer', () => {
 });
 
 describe('DICTIONARY data integrity', () => {
+  test('matches dictionary.json, the source of truth (run npm run build:dict after editing it)', () => {
+    expect(DICT_DATA).toEqual(require('../../dictionary.json'));
+  });
+
+  test('every key is folded and every answer is playable for its letter', () => {
+    const maxInputLength = 20;
+    const problems = [];
+    Object.entries(DICT_DATA).forEach(([letter, categories]) => {
+      Object.entries(categories).forEach(([category, answers]) => {
+        if (category !== removeAccents(category.toLowerCase()).trim()) {
+          problems.push(`${letter}/${category}: key is not folded`);
+        }
+        answers.forEach(answer => {
+          const folded = removeAccents(answer.toLowerCase()).trim();
+          if (folded.length < 2 || !folded.startsWith(letter) || answer.length > maxInputLength) {
+            problems.push(`${letter}/${category}: ${answer}`);
+          }
+        });
+      });
+    });
+    expect(problems).toEqual([]);
+  });
+
   test('contains all letters a-z', () => {
     const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
     letters.forEach(letter => {
